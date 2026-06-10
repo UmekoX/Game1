@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>四字熟語 填空遊戲</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* ===== Reset & Base ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden}
+body{
+  font-family:'Noto Serif JP',serif;
+  background:#c2b29a;
+  color:#1a1410;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background-image:
+    radial-gradient(ellipse at 20% 50%,rgba(0,0,0,.12) 0%,transparent 70%),
+    radial-gradient(ellipse at 80% 50%,rgba(0,0,0,.10) 0%,transparent 70%),
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E");
+}
+
+/* ===== 全畫面容器 ===== */
+#app{
+  width:100%;max-width:560px;height:100dvh;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:space-between;padding:16px 12px;
+  position:relative;
+}
+
+/* ===== 頂部資訊列 ===== */
+#header{
+  width:100%;display:flex;justify-content:space-between;align-items:center;
+  padding:6px 10px;border-bottom:2px solid #3a2f24;margin-bottom:8px;
+  font-size:.85rem;color:#4a3b2a;letter-spacing:.05em;
+}
+
+/* ===== 題目區 ===== */
+#question-area{
+  flex:0 0 auto;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:18px 0 10px;width:100%;
+}
+#question-display{
+  display:flex;align-items:center;justify-content:center;gap:4px;
+  font-size:clamp(2.2rem,8vw,3.4rem);font-weight:900;
+  letter-spacing:.08em;line-height:1.3;
+  transition:color .4s;
+}
+#question-display .char{display:inline-block}
+#question-display .slot{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:clamp(2.4rem,9vw,3.6rem);height:clamp(2.6rem,9.5vw,3.8rem);
+  border:2.5px dashed #5a3e28;border-radius:4px;
+  background:rgba(0,0,0,.06);margin:0 2px;
+  font-size:inherit;color:#1a1410;
+  cursor:pointer;transition:background .2s,border-color .3s;
+}
+#question-display .slot.filled{border-style:solid;background:rgba(0,0,0,.04)}
+#question-display .slot.correct-color{color:#8b0000!important;border-color:#8b0000}
+
+/* ===== 意義顯示 ===== */
+#meaning-box{
+  margin-top:12px;font-size:clamp(.9rem,3.2vw,1.1rem);
+  color:#5a3020;text-align:center;min-height:1.6em;
+  opacity:0;transition:opacity .5s;padding:0 8px;
+  font-style:italic;
+}
+#meaning-box.show{opacity:1}
+
+/* ===== 字卡區 ===== */
+#cards-area{
+  flex:1 1 auto;display:flex;flex-wrap:wrap;
+  align-content:center;justify-content:center;
+  gap:10px;padding:12px 4px;width:100%;
+  max-height:50dvh;overflow-y:auto;
+}
+.card{
+  width:clamp(52px,13vw,68px);height:clamp(64px,16vw,84px);
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(1.4rem,5vw,1.9rem);font-weight:700;
+  background:linear-gradient(145deg,#e8dcc8,#d4c4a8);
+  border:2px solid #3a2f24;border-radius:5px;
+  box-shadow:2px 3px 6px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.2);
+  cursor:pointer;user-select:none;
+  transition:transform .12s,box-shadow .12s,opacity .3s;
+  position:relative;
+}
+.card::before{
+  content:'';position:absolute;inset:3px;
+  border:1px solid rgba(58,47,36,.2);border-radius:3px;
+  pointer-events:none;
+}
+.card:hover{transform:translateY(-3px);box-shadow:2px 5px 10px rgba(0,0,0,.3)}
+.card:active{transform:translateY(1px) scale(.96);box-shadow:1px 1px 3px rgba(0,0,0,.2)}
+.card.used{opacity:.25;pointer-events:none;transform:scale(.9)}
+
+/* ===== 結算畫面 ===== */
+#result-screen{
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  position:absolute;inset:0;background:rgba(30,22,14,.92);
+  z-index:100;color:#d2b48c;text-align:center;padding:20px;
+}
+#result-screen h2{font-size:clamp(1.6rem,5vw,2.2rem);margin-bottom:16px;letter-spacing:.1em}
+#result-screen .score{font-size:clamp(3rem,10vw,5rem);font-weight:900;color:#cd853f;margin:12px 0}
+#result-screen button{
+  margin-top:24px;padding:14px 36px;font-size:1.1rem;
+  font-family:'Noto Serif JP',serif;font-weight:700;
+  background:linear-gradient(145deg,#5a3e28,#3a2818);
+  color:#d2b48c;border:2px solid #8b7355;border-radius:6px;
+  cursor:pointer;letter-spacing:.08em;
+  transition:transform .15s,background .2s;
+}
+#result-screen button:hover{transform:scale(1.05)}
+#result-screen button:active{transform:scale(.97)}
+
+/* ===== Loading & Error ===== */
+#loading{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:#c2b29a;z-index:200;
+  font-size:1.2rem;color:#3a2f24;
+}
+.spinner{
+  width:40px;height:40px;border:3px solid #5a3e28;
+  border-top-color:transparent;border-radius:50%;
+  animation:spin 1s linear infinite;margin-bottom:16px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Shake 動畫 ===== */
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  10%{transform:translateX(-8px) rotate(-1deg)}
+  20%{transform:translateX(8px) rotate(1deg)}
+  30%{transform:translateX(-10px) rotate(-1.5deg)}
+  40%{transform:translateX(10px) rotate(1.5deg)}
+  50%{transform:translateX(-8px) rotate(-1deg)}
+  60%{transform:translateX(8px) rotate(1deg)}
+  70%{transform:translateX(-5px)}
+  80%{transform:translateX(5px)}
+  90%{transform:translateX(-2px)}
+}
+.shake{animation:shake .55s ease-in-out}
+
+/* ===== RWD ===== */
+@media(min-width:600px){
+  #app{padding:24px 20px}
+  #cards-area{gap:12px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Loading -->
+  <div id="loading"><div class="spinner"></div><span>題庫載入中…</span></div>
+
+  <!-- 頂部資訊 -->
+  <div id="header">
+    <span id="progress">第 1 / 5 題</span>
+    <span id="score-display">正解：0</span>
+  </div>
+
+  <!-- 題目 -->
+  <div id="question-area">
+    <div id="question-display"></div>
+    <div id="meaning-box"></div>
+  </div>
+
+  <!-- 字卡 -->
+  <div id="cards-area"></div>
+
+  <!-- 結算 -->
+  <div id="result-screen">
+    <h2>— 結算 —</h2>
+    <div class="score" id="final-score"></div>
+    <p id="final-msg"></p>
+    <button onclick="startGame()">重新挑戰</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   四字熟語 填空遊戲 — Rusty Lake 風格
+   ========================================================= */
+
+// ===== 全域變數 =====
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSF8qi-Njw5HNtUzmKjdFfzaLmFBn6b8ptDkEZhPPmIsCYfvXHrps15Q70ehfC292FDlQY-8wem_tF8/pub?output=csv';
+const TOTAL_Q = 5;   // 每局題數
+const CARD_N  = 15;  // 字卡總數
+
+// 多個 CORS Proxy 備援
+const PROXIES = [
+  url => 'https://corsproxy.io/?' + encodeURIComponent(url),
+  url => 'https://api.allorigins.win/get?url=' + encodeURIComponent(url),
+  url => url  // 直接嘗試（localhost / 同源時可用）
+];
+
+let allQuestions = []; // 完整題庫
+let gameQuestions = []; // 本局 5 題
+let currentIdx = 0;    // 目前第幾題 (0-based)
+let correctCount = 0;  // 答對數
+let filledSlots = [];  // 已填入的 slot 元素
+let isJudging = false; // 判定中鎖定
+
+// ===== DOM =====
+const $loading  = document.getElementById('loading');
+const $progress = document.getElementById('progress');
+const $scoreTxt = document.getElementById('score-display');
+const $qDisplay = document.getElementById('question-display');
+const $meaning  = document.getElementById('meaning-box');
+const $cards    = document.getElementById('cards-area');
+const $result   = document.getElementById('result-screen');
+const $finalSc  = document.getElementById('final-score');
+const $finalMsg = document.getElementById('final-msg');
+
+// ===== Web Audio API 音效 =====
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function ensureAudio(){ if(!audioCtx) audioCtx = new AudioCtx(); }
+
+/** 正確音效：短促高音「叮！」 */
+function playCorrect(){
+  ensureAudio();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sine'; o.frequency.value = 1200;
+  g.gain.setValueAtTime(.3, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + .25);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + .25);
+}
+
+/** 錯誤音效：低沉「嘟！」 */
+function playWrong(){
+  ensureAudio();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'square'; o.frequency.value = 180;
+  g.gain.setValueAtTime(.25, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + .3);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + .3);
+}
+
+// ===== CSV 載入與解析（多 Proxy 備援）=====
+async function loadCSV(){
+  let lastErr;
+  for(const makeUrl of PROXIES){
+    try{
+      const fetchUrl = makeUrl(CSV_URL);
+      console.log('嘗試載入：', fetchUrl);
+      const res = await fetch(fetchUrl);
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      let text = await res.text();
+      // allorigins /get 端點回傳 JSON {contents: "..."}
+      if(fetchUrl.includes('allorigins.win/get')){
+        const json = JSON.parse(text);
+        text = json.contents;
+      }
+      allQuestions = parseCSV(text);
+      if(allQuestions.length === 0) throw new Error('題庫為空');
+      $loading.style.display = 'none';
+      startGame();
+      return; // 成功，結束
+    }catch(e){
+      console.warn('Proxy 失敗：', e.message);
+      lastErr = e;
+    }
+  }
+  // 全部失敗
+  console.error('題庫載入失敗：', lastErr);
+  $loading.innerHTML = '<p style="color:#8b0000;font-size:1.1rem;">⚠ 題庫載入失敗<br><small>'+lastErr.message+'</small></p>';
+}
+
+/** 簡易 CSV 解析器（支援引號欄位） */
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if(lines.length < 2) return [];
+  const headers = splitCSVLine(lines[0]);
+  const data = [];
+  for(let i = 1; i < lines.length; i++){
+    const cols = splitCSVLine(lines[i]);
+    if(cols.length < headers.length) continue;
+    const obj = {};
+    headers.forEach((h, idx) => obj[h.trim()] = (cols[idx]||'').trim());
+    if(obj.question && obj.ans1 && obj.ans2) data.push(obj);
+  }
+  return data;
+}
+
+function splitCSVLine(line){
+  const result = []; let cur = ''; let inQuote = false;
+  for(let i = 0; i < line.length; i++){
+    const c = line[i];
+    if(inQuote){
+      if(c === '"' && line[i+1] === '"'){ cur += '"'; i++; }
+      else if(c === '"') inQuote = false;
+      else cur += c;
+    } else {
+      if(c === '"') inQuote = true;
+      else if(c === ','){result.push(cur); cur = '';}
+      else cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+// ===== 遊戲控制 =====
+
+/** 開始新一局 */
+function startGame(){
+  $result.style.display = 'none';
+  currentIdx = 0; correctCount = 0;
+  // 隨機抽 TOTAL_Q 題
+  const shuffled = [...allQuestions].sort(() => Math.random() - .5);
+  gameQuestions = shuffled.slice(0, Math.min(TOTAL_Q, shuffled.length));
+  renderQuestion();
+}
+
+/** 渲染當前題目 */
+function renderQuestion(){
+  isJudging = false;
+  filledSlots = [];
+  const q = gameQuestions[currentIdx];
+  $progress.textContent = `第 ${currentIdx+1} / ${gameQuestions.length} 題`;
+  $scoreTxt.textContent = `正解：${correctCount}`;
+  $meaning.textContent = '';
+  $meaning.classList.remove('show');
+
+  // === 題目顯示 ===
+  $qDisplay.innerHTML = '';
+  $qDisplay.classList.remove('shake');
+  const chars = [...q.question]; // 逐字拆
+  let slotIndex = 0;
+  chars.forEach(ch => {
+    if(ch === '＿' || ch === '_' || ch === '□'){
+      const span = document.createElement('span');
+      span.className = 'slot';
+      span.dataset.slotIdx = slotIndex++;
+      // 點擊 slot 可退回字卡
+      span.addEventListener('click', () => unfillSlot(span));
+      $qDisplay.appendChild(span);
+    } else {
+      const span = document.createElement('span');
+      span.className = 'char';
+      span.textContent = ch;
+      $qDisplay.appendChild(span);
+    }
+  });
+
+  // === 字卡 ===
+  const answers = [q.ans1, q.ans2];
+  // 收集干擾字：先從本題 interference，再從其他題補充
+  let pool = [];
+  if(q.interference){
+    // interference 可能是逗號分隔或連續漢字
+    pool = q.interference.includes(',')
+      ? q.interference.split(',').map(s=>s.trim()).filter(Boolean)
+      : [...q.interference].filter(c => c.trim());
+  }
+  // 過濾掉正確答案
+  pool = pool.filter(c => !answers.includes(c));
+  // 若不足 13 個，從其他題的 interference 補充
+  if(pool.length < CARD_N - 2){
+    const others = allQuestions.filter(oq => oq !== q);
+    for(const oq of others){
+      if(pool.length >= CARD_N - 2) break;
+      let extra = oq.interference
+        ? (oq.interference.includes(',') ? oq.interference.split(',').map(s=>s.trim()) : [...oq.interference])
+        : [];
+      extra = extra.filter(c => c.trim() && !answers.includes(c) && !pool.includes(c));
+      pool.push(...extra);
+    }
+  }
+  // 取 13 個
+  pool = [...new Set(pool)].sort(() => Math.random()-.5).slice(0, CARD_N - 2);
+  // 合併並打亂
+  const allCards = [...answers, ...pool].sort(() => Math.random()-.5);
+
+  $cards.innerHTML = '';
+  allCards.forEach(ch => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.textContent = ch;
+    div.addEventListener('click', () => onCardClick(div, ch));
+    $cards.appendChild(div);
+  });
+}
+
+/** 點擊字卡 → 填入空格 */
+function onCardClick(cardEl, ch){
+  if(isJudging || cardEl.classList.contains('used')) return;
+  // 找到第一個空的 slot
+  const slots = $qDisplay.querySelectorAll('.slot');
+  let target = null;
+  for(const s of slots){
+    if(!s.textContent){ target = s; break; }
+  }
+  if(!target) return;
+
+  cardEl.classList.add('used');
+  target.textContent = ch;
+  target.classList.add('filled');
+  target.dataset.cardId = Array.from($cards.children).indexOf(cardEl);
+  filledSlots.push({slot: target, card: cardEl, char: ch});
+
+  // 兩格填滿 → 判定
+  const allFilled = [...slots].every(s => s.textContent);
+  if(allFilled) judge();
+}
+
+/** 點擊已填 slot → 退回字卡 */
+function unfillSlot(slotEl){
+  if(isJudging || !slotEl.textContent) return;
+  const entry = filledSlots.find(f => f.slot === slotEl);
+  if(entry){
+    entry.card.classList.remove('used');
+    filledSlots = filledSlots.filter(f => f !== entry);
+  }
+  slotEl.textContent = '';
+  slotEl.classList.remove('filled');
+}
+
+/** 判定答案 */
+function judge(){
+  isJudging = true;
+  const q = gameQuestions[currentIdx];
+  const slots = $qDisplay.querySelectorAll('.slot');
+  const ans = [q.ans1, q.ans2];
+  const userAns = [...slots].map(s => s.textContent);
+
+  if(userAns[0] === ans[0] && userAns[1] === ans[1]){
+    // ✅ 正確
+    playCorrect();
+    correctCount++;
+    $scoreTxt.textContent = `正解：${correctCount}`;
+    slots.forEach(s => s.classList.add('correct-color'));
+    // 顯示意義
+    $meaning.textContent = q.meaning || '';
+    $meaning.classList.add('show');
+    // 2 秒後下一題
+    setTimeout(() => {
+      currentIdx++;
+      if(currentIdx >= gameQuestions.length) showResult();
+      else renderQuestion();
+    }, 2000);
+  } else {
+    // ❌ 錯誤
+    playWrong();
+    $qDisplay.classList.add('shake');
+    setTimeout(() => {
+      $qDisplay.classList.remove('shake');
+      // 退回字卡
+      filledSlots.forEach(f => {
+        f.card.classList.remove('used');
+        f.slot.textContent = '';
+        f.slot.classList.remove('filled');
+      });
+      filledSlots = [];
+      isJudging = false;
+    }, 600);
+  }
+}
+
+/** 結算畫面 */
+function showResult(){
+  const total = gameQuestions.length;
+  $finalSc.textContent = `${correctCount} / ${total}`;
+  const msgs = ['もう一度！','まあまあ…','なかなか！','素晴らしい！','完璧！'];
+  const tier = Math.min(Math.floor(correctCount / total * 4), 4);
+  $finalMsg.textContent = msgs[tier];
+  $result.style.display = 'flex';
+}
+
+// ===== 啟動 =====
+loadCSV();
+</script>
+</body>
+</html>
