@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>並び替え — 句子重組遊戲</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* ===== Reset & Base ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;touch-action:none}
+body{
+  font-family:'Noto Serif JP',serif;
+  background:#c2b29a;
+  color:#1a1410;
+  display:flex;align-items:center;justify-content:center;
+  background-image:
+    radial-gradient(ellipse at 20% 50%,rgba(0,0,0,.12) 0%,transparent 70%),
+    radial-gradient(ellipse at 80% 50%,rgba(0,0,0,.10) 0%,transparent 70%),
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E");
+}
+
+/* ===== 容器 ===== */
+#app{
+  width:100%;max-width:600px;height:100dvh;
+  display:flex;flex-direction:column;
+  padding:12px 10px;position:relative;overflow-y:auto;
+}
+
+/* ===== 頂部 ===== */
+#header{
+  width:100%;display:flex;justify-content:space-between;align-items:center;
+  padding:6px 8px;border-bottom:2px solid #3a2f24;margin-bottom:6px;
+  font-size:.82rem;color:#4a3b2a;flex-shrink:0;
+}
+
+/* ===== 題目文字 ===== */
+#question-text{
+  text-align:center;padding:10px 6px;
+  font-size:clamp(.88rem,3vw,1.08rem);line-height:1.8;
+  color:#2a1e14;flex-shrink:0;
+}
+
+/* ===== 空槽區 ===== */
+#drop-zones{
+  display:flex;flex-wrap:wrap;justify-content:center;
+  gap:8px;padding:10px 4px;flex-shrink:0;
+}
+.drop-zone{
+  min-width:clamp(70px,20vw,130px);min-height:44px;
+  padding:8px 10px;
+  border:2.5px dashed #5a3e28;border-radius:5px;
+  background:rgba(0,0,0,.05);
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(.85rem,2.8vw,1rem);
+  color:#888;transition:border-color .2s,background .2s;
+}
+.drop-zone.hover{border-color:#8b7355;background:rgba(0,0,0,.1)}
+.drop-zone.occupied{
+  border-style:solid;color:#1a1410;background:rgba(0,0,0,.04);
+  cursor:grab;
+}
+.drop-zone.locked{
+  color:#8b0000!important;border-color:#8b0000!important;
+  background:rgba(139,0,0,.06)!important;cursor:default;
+  font-weight:700;
+}
+
+/* ===== 意義 & 按鈕 ===== */
+#meaning-box{
+  text-align:center;padding:6px 8px;min-height:1.4em;
+  font-size:clamp(.85rem,2.8vw,1rem);color:#5a3020;
+  opacity:0;transition:opacity .5s;font-style:italic;flex-shrink:0;
+}
+#meaning-box.show{opacity:1}
+#next-btn{
+  display:none;margin:8px auto 0;padding:10px 28px;
+  font-family:'Noto Serif JP',serif;font-size:clamp(.9rem,2.8vw,1.05rem);font-weight:700;
+  background:linear-gradient(145deg,#5a3e28,#3a2818);
+  color:#d2b48c;border:2px solid #8b7355;border-radius:6px;
+  cursor:pointer;letter-spacing:.06em;
+  transition:transform .15s,opacity .4s;opacity:0;flex-shrink:0;
+}
+#next-btn.show{display:inline-block;opacity:1}
+#next-btn:hover{transform:scale(1.05)}
+#next-btn:active{transform:scale(.97)}
+
+/* ===== 碎片區 ===== */
+#fragments-area{
+  flex:1 1 auto;display:flex;flex-wrap:wrap;
+  align-content:center;justify-content:center;
+  gap:10px;padding:10px 4px;
+}
+.fragment{
+  padding:10px 14px;
+  font-size:clamp(.85rem,2.8vw,1rem);font-weight:700;
+  background:linear-gradient(145deg,#e8dcc8,#d4c4a8);
+  border:2px solid #3a2f24;border-radius:5px;
+  box-shadow:2px 3px 6px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.2);
+  cursor:grab;user-select:none;touch-action:none;
+  position:relative;transition:transform .12s,box-shadow .12s,opacity .3s;
+}
+.fragment::before{
+  content:'';position:absolute;inset:3px;
+  border:1px solid rgba(58,47,36,.15);border-radius:3px;pointer-events:none;
+}
+.fragment:hover{transform:translateY(-2px);box-shadow:2px 5px 10px rgba(0,0,0,.3)}
+.fragment:active{cursor:grabbing}
+.fragment.placed{display:none}
+
+/* ===== 拖曳中的複製品 ===== */
+.drag-clone{
+  position:fixed;z-index:9999;pointer-events:none;
+  padding:10px 14px;font-size:clamp(.85rem,2.8vw,1rem);font-weight:700;
+  background:linear-gradient(145deg,#e8dcc8,#d4c4a8);
+  border:2px solid #3a2f24;border-radius:5px;
+  box-shadow:4px 6px 16px rgba(0,0,0,.4);
+  opacity:.9;transform:rotate(-2deg) scale(1.05);
+  font-family:'Noto Serif JP',serif;
+}
+
+/* ===== 結算 ===== */
+#result-screen{
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  position:absolute;inset:0;background:rgba(30,22,14,.92);
+  z-index:100;color:#d2b48c;text-align:center;padding:20px;
+}
+#result-screen h2{font-size:clamp(1.6rem,5vw,2.2rem);margin-bottom:16px;letter-spacing:.1em}
+#result-screen .score{font-size:clamp(3rem,10vw,5rem);font-weight:900;color:#cd853f;margin:12px 0}
+#result-screen button{
+  margin-top:24px;padding:14px 36px;font-size:1.1rem;
+  font-family:'Noto Serif JP',serif;font-weight:700;
+  background:linear-gradient(145deg,#5a3e28,#3a2818);
+  color:#d2b48c;border:2px solid #8b7355;border-radius:6px;
+  cursor:pointer;transition:transform .15s;
+}
+#result-screen button:hover{transform:scale(1.05)}
+
+/* ===== Loading ===== */
+#loading{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:#c2b29a;z-index:200;font-size:1.2rem;color:#3a2f24;
+}
+.spinner{
+  width:40px;height:40px;border:3px solid #5a3e28;
+  border-top-color:transparent;border-radius:50%;
+  animation:spin 1s linear infinite;margin-bottom:16px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Shake ===== */
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  10%{transform:translateX(-8px) rotate(-1deg)}
+  20%{transform:translateX(8px) rotate(1deg)}
+  30%{transform:translateX(-10px) rotate(-1.5deg)}
+  40%{transform:translateX(10px) rotate(1.5deg)}
+  50%{transform:translateX(-8px) rotate(-1deg)}
+  60%{transform:translateX(8px) rotate(1deg)}
+  70%{transform:translateX(-5px)}80%{transform:translateX(5px)}
+  90%{transform:translateX(-2px)}
+}
+.shake{animation:shake .55s ease-in-out}
+
+@media(min-width:600px){
+  #app{padding:20px}
+  #drop-zones{gap:12px}
+  #fragments-area{gap:14px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="loading"><div class="spinner"></div><span>題庫載入中…</span></div>
+
+  <div id="header">
+    <span id="progress">第 1 / 5 題</span>
+    <span id="score-display">正解：0</span>
+  </div>
+
+  <div id="question-text"></div>
+  <div id="drop-zones"></div>
+  <div id="meaning-box"></div>
+  <button id="next-btn">次の問題 ▶</button>
+  <div id="fragments-area"></div>
+
+  <div id="result-screen">
+    <h2>— 結算 —</h2>
+    <div class="score" id="final-score"></div>
+    <p id="final-msg"></p>
+    <button onclick="startGame()">重新挑戰</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   並び替え — 句子重組遊戲 (Rusty Lake 風格)
+   ========================================================= */
+
+// ===== 常數 =====
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQzK8bUHGBA2rGDYiat2HXTKsFc_-_72winAh3XkiJawGDdC1AL_CeHlz5wNPbAWj0vY7-JtPnZoSuC/pub?output=csv';
+const PROXIES = [
+  u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+  u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
+  u => u
+];
+const TOTAL_Q = 5;
+
+// ===== 狀態 =====
+let allQuestions = [], gameQuestions = [];
+let currentIdx = 0, correctCount = 0;
+let isJudging = false;
+
+// slots[i] = { zone: DOM, fragIdx: number|null, locked: bool }
+let slots = [];
+// frags[i] = { el: DOM, text: string, fragNum: number, placedIn: number|null }
+let frags = [];
+
+// ===== 拖曳狀態 =====
+let dragState = null; // { fragIdx, clone, offsetX, offsetY, source:'bank'|'slot', sourceSlot }
+
+// ===== DOM =====
+const $loading  = document.getElementById('loading');
+const $progress = document.getElementById('progress');
+const $scoreTxt = document.getElementById('score-display');
+const $qText    = document.getElementById('question-text');
+const $dropZones= document.getElementById('drop-zones');
+const $meaning  = document.getElementById('meaning-box');
+const $nextBtn  = document.getElementById('next-btn');
+const $fragArea = document.getElementById('fragments-area');
+const $result   = document.getElementById('result-screen');
+
+// ===== Web Audio API =====
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function ensureAudio(){ if(!audioCtx) audioCtx = new AudioCtx(); }
+
+function playCorrect(){
+  ensureAudio();
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type='sine'; o.frequency.value=1200;
+  g.gain.setValueAtTime(.3,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.25);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime+.25);
+}
+function playWrong(){
+  ensureAudio();
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type='square'; o.frequency.value=180;
+  g.gain.setValueAtTime(.25,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.3);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime+.3);
+}
+
+// ===== CSV 載入 =====
+async function loadCSV(){
+  let lastErr;
+  for(const makeUrl of PROXIES){
+    try{
+      const url = makeUrl(CSV_URL);
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      let text = await res.text();
+      if(url.includes('allorigins.win/get')){
+        text = JSON.parse(text).contents;
+      }
+      allQuestions = parseCSV(text);
+      if(!allQuestions.length) throw new Error('題庫為空');
+      $loading.style.display='none';
+      startGame();
+      return;
+    }catch(e){ console.warn('Proxy fail:',e.message); lastErr=e; }
+  }
+  console.error('載入失敗:',lastErr);
+  $loading.innerHTML='<p style="color:#8b0000">⚠ 題庫載入失敗<br><small>'+lastErr.message+'</small></p>';
+}
+
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2) return [];
+  const headers=splitCSV(lines[0]);
+  const data=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=splitCSV(lines[i]);
+    if(cols.length<headers.length) continue;
+    const obj={};
+    headers.forEach((h,idx)=>obj[h.trim()]=((cols[idx])||'').trim());
+    if(obj.question && obj.fragment1 && obj.correctorder) data.push(obj);
+  }
+  return data;
+}
+
+function splitCSV(line){
+  const r=[]; let c='',q=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(q){ if(ch==='"'&&line[i+1]==='"'){c+='"';i++;}else if(ch==='"')q=false;else c+=ch; }
+    else{ if(ch==='"')q=true;else if(ch===','){r.push(c);c='';}else c+=ch; }
+  }
+  r.push(c); return r;
+}
+
+// ===== 遊戲控制 =====
+function startGame(){
+  $result.style.display='none';
+  currentIdx=0; correctCount=0;
+  gameQuestions=[...allQuestions].sort(()=>Math.random()-.5).slice(0,Math.min(TOTAL_Q,allQuestions.length));
+  renderQuestion();
+}
+
+function renderQuestion(){
+  isJudging=false;
+  const q=gameQuestions[currentIdx];
+  $progress.textContent=`第 ${currentIdx+1} / ${gameQuestions.length} 題`;
+  $scoreTxt.textContent=`正解：${correctCount}`;
+  $meaning.textContent=''; $meaning.classList.remove('show');
+  $nextBtn.classList.remove('show');
+
+  // 題目文字：將（ ）替換為編號標記
+  let qHTML = q.question;
+  let slotNum = 0;
+  qHTML = qHTML.replace(/（\s*）/g, () => `<span class="q-slot">[ ${++slotNum} ]</span>`);
+  $qText.innerHTML = qHTML;
+
+  // 解析正確順序：correctorder 如 "2413" → [2,4,1,3]
+  const orderStr = q.correctorder.replace(/[,\s]/g,'');
+  const correctOrder = [...orderStr].map(Number); // correctOrder[slotIdx] = fragNum
+
+  // 建立 4 個空槽
+  $dropZones.innerHTML='';
+  $dropZones.classList.remove('shake');
+  slots=[];
+  for(let i=0;i<4;i++){
+    const zone=document.createElement('div');
+    zone.className='drop-zone';
+    zone.dataset.slotIdx=i;
+    zone.textContent=`[ ${i+1} ]`;
+    $dropZones.appendChild(zone);
+    slots.push({zone, fragIdx:null, locked:false});
+
+    // 從空槽拖出碎片
+    zone.addEventListener('pointerdown', e=>{
+      if(isJudging) return;
+      const si=parseInt(zone.dataset.slotIdx);
+      if(slots[si].locked || slots[si].fragIdx===null) return;
+      e.preventDefault();
+      beginDrag(slots[si].fragIdx, e.clientX, e.clientY, 'slot', si);
+    });
+  }
+
+  // 建立碎片（隨機順序）
+  const fragTexts=[q.fragment1, q.fragment2, q.fragment3, q.fragment4];
+  const indices=[0,1,2,3].sort(()=>Math.random()-.5);
+  $fragArea.innerHTML='';
+  frags=[];
+  for(let i=0;i<4;i++){
+    frags.push({el:null, text:fragTexts[i], fragNum:i+1, placedIn:null});
+  }
+  indices.forEach(fi=>{
+    const el=document.createElement('div');
+    el.className='fragment';
+    el.textContent=frags[fi].text;
+    el.dataset.fragIdx=fi;
+    frags[fi].el=el;
+    $fragArea.appendChild(el);
+
+    el.addEventListener('pointerdown', e=>{
+      if(isJudging||frags[fi].placedIn!==null) return;
+      e.preventDefault();
+      beginDrag(fi, e.clientX, e.clientY, 'bank', null);
+    });
+  });
+
+  // 儲存正確順序供判定
+  $dropZones.dataset.correctOrder=JSON.stringify(correctOrder);
+}
+
+// ===== 拖曳系統 (Pointer Events) =====
+function beginDrag(fragIdx, cx, cy, source, sourceSlot){
+  const f=frags[fragIdx];
+  // 若從 slot 拖出，先清除 slot
+  if(source==='slot' && sourceSlot!==null){
+    const s=slots[sourceSlot];
+    s.zone.textContent=`[ ${sourceSlot+1} ]`;
+    s.zone.classList.remove('occupied');
+    s.fragIdx=null;
+    f.placedIn=null;
+    f.el.classList.remove('placed');
+  }
+
+  // 建立拖曳複製品
+  const clone=document.createElement('div');
+  clone.className='drag-clone';
+  clone.textContent=f.text;
+  document.body.appendChild(clone);
+
+  const rect=clone.getBoundingClientRect();
+  const oX=rect.width/2, oY=rect.height/2;
+  clone.style.left=(cx-oX)+'px';
+  clone.style.top=(cy-oY)+'px';
+
+  // 隱藏原碎片
+  f.el.style.opacity='.25';
+
+  dragState={fragIdx, clone, offsetX:oX, offsetY:oY, source, sourceSlot};
+
+  document.addEventListener('pointermove', onDragMove);
+  document.addEventListener('pointerup', onDragEnd);
+  document.addEventListener('pointercancel', onDragEnd);
+}
+
+function onDragMove(e){
+  if(!dragState) return;
+  e.preventDefault();
+  dragState.clone.style.left=(e.clientX-dragState.offsetX)+'px';
+  dragState.clone.style.top=(e.clientY-dragState.offsetY)+'px';
+
+  // 高亮碰到的空槽
+  slots.forEach(s=>{
+    if(s.locked) return;
+    const r=s.zone.getBoundingClientRect();
+    const hit=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
+    s.zone.classList.toggle('hover',hit&&s.fragIdx===null);
+  });
+}
+
+function onDragEnd(e){
+  if(!dragState) return;
+  document.removeEventListener('pointermove', onDragMove);
+  document.removeEventListener('pointerup', onDragEnd);
+  document.removeEventListener('pointercancel', onDragEnd);
+
+  const cx=e.clientX, cy=e.clientY;
+  let targetSlot=null;
+
+  // 檢查是否落在某個空槽上
+  for(let i=0;i<slots.length;i++){
+    if(slots[i].locked) continue;
+    const r=slots[i].zone.getBoundingClientRect();
+    if(cx>=r.left&&cx<=r.right&&cy>=r.top&&cy<=r.bottom){
+      targetSlot=i; break;
+    }
+  }
+
+  const f=frags[dragState.fragIdx];
+
+  if(targetSlot!==null){
+    // 如果目標槽已有碎片，先退回那個碎片
+    if(slots[targetSlot].fragIdx!==null){
+      const oldFi=slots[targetSlot].fragIdx;
+      frags[oldFi].placedIn=null;
+      frags[oldFi].el.classList.remove('placed');
+      frags[oldFi].el.style.opacity='1';
+    }
+    // 放入目標槽
+    slots[targetSlot].zone.textContent=f.text;
+    slots[targetSlot].zone.classList.add('occupied');
+    slots[targetSlot].fragIdx=dragState.fragIdx;
+    f.placedIn=targetSlot;
+    f.el.classList.add('placed');
+    f.el.style.opacity='1';
+  } else {
+    // 沒有落在空槽 → 退回碎片區
+    f.el.style.opacity='1';
+    f.el.classList.remove('placed');
+    f.placedIn=null;
+  }
+
+  // 移除高亮
+  slots.forEach(s=>s.zone.classList.remove('hover'));
+
+  // 移除複製品
+  dragState.clone.remove();
+  dragState=null;
+
+  // 檢查是否 4 格都填滿
+  if(!isJudging && slots.every(s=>s.fragIdx!==null)){
+    judge();
+  }
+}
+
+// ===== 判定 =====
+function judge(){
+  isJudging=true;
+  const correctOrder=JSON.parse($dropZones.dataset.correctOrder);
+  // correctOrder[i] = 正確的 fragNum (1-based) for slot i
+  let allCorrect=true;
+  const wrongSlots=[];
+
+  for(let i=0;i<4;i++){
+    const placedFragNum=frags[slots[i].fragIdx].fragNum;
+    if(placedFragNum===correctOrder[i]){
+      // 正確 → 鎖定
+      slots[i].locked=true;
+      slots[i].zone.classList.add('locked');
+    } else {
+      allCorrect=false;
+      wrongSlots.push(i);
+    }
+  }
+
+  if(wrongSlots.length===0){
+    // 全部正確
+    playCorrect();
+    correctCount++;
+    $scoreTxt.textContent=`正解：${correctCount}`;
+    const q=gameQuestions[currentIdx];
+    $meaning.textContent=q.fullsentence||'';
+    $meaning.classList.add('show');
+    $nextBtn.classList.add('show');
+    // isJudging 保持 true，防止繼續拖曳
+  } else {
+    // 有錯誤
+    playWrong();
+    $dropZones.classList.add('shake');
+    setTimeout(()=>{
+      $dropZones.classList.remove('shake');
+      // 退回錯誤碎片
+      wrongSlots.forEach(si=>{
+        const fi=slots[si].fragIdx;
+        frags[fi].placedIn=null;
+        frags[fi].el.classList.remove('placed');
+        frags[fi].el.style.opacity='1';
+        slots[si].zone.textContent=`[ ${si+1} ]`;
+        slots[si].zone.classList.remove('occupied');
+        slots[si].fragIdx=null;
+      });
+      isJudging=false;
+    },600);
+  }
+}
+
+// ===== 下一題 =====
+$nextBtn.addEventListener('click',()=>{
+  currentIdx++;
+  if(currentIdx>=gameQuestions.length) showResult();
+  else renderQuestion();
+});
+
+function showResult(){
+  const t=gameQuestions.length;
+  document.getElementById('final-score').textContent=`${correctCount} / ${t}`;
+  const msgs=['もう一度！','まあまあ…','なかなか！','素晴らしい！','完璧！'];
+  document.getElementById('final-msg').textContent=msgs[Math.min(Math.floor(correctCount/t*4),4)];
+  $result.style.display='flex';
+}
+
+// ===== 啟動 =====
+loadCSV();
+</script>
+</body>
+</html>
