@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文法選択 — 選擇題遊戲</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* ===== Reset & Base ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden}
+body{
+  font-family:'Noto Serif JP',serif;
+  background:#c2b29a;color:#1a1410;
+  display:flex;align-items:center;justify-content:center;
+  background-image:
+    radial-gradient(ellipse at 20% 50%,rgba(0,0,0,.12) 0%,transparent 70%),
+    radial-gradient(ellipse at 80% 50%,rgba(0,0,0,.10) 0%,transparent 70%),
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E");
+}
+
+/* ===== 容器 ===== */
+#app{
+  width:100%;max-width:580px;height:100dvh;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:space-between;padding:14px 12px;
+  position:relative;
+}
+
+/* ===== 頂部 ===== */
+#header{
+  width:100%;display:flex;justify-content:space-between;align-items:center;
+  padding:6px 10px;border-bottom:2px solid #3a2f24;margin-bottom:6px;
+  font-size:.83rem;color:#4a3b2a;letter-spacing:.05em;flex-shrink:0;
+}
+
+/* ===== 題目區 ===== */
+#question-area{
+  flex:1 1 auto;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  width:100%;padding:10px 4px;
+}
+#question-text{
+  text-align:center;padding:12px 10px;
+  font-size:clamp(1rem,3.5vw,1.25rem);line-height:1.9;
+  font-weight:700;color:#2a1e14;margin-bottom:18px;
+}
+
+/* ===== 選項按鈕 ===== */
+#options{
+  width:100%;display:flex;flex-direction:column;
+  gap:12px;max-width:480px;
+}
+.option-btn{
+  width:100%;padding:14px 18px;
+  font-family:'Noto Serif JP',serif;
+  font-size:clamp(.92rem,3vw,1.08rem);font-weight:700;
+  text-align:left;line-height:1.6;
+  background:linear-gradient(145deg,#e8dcc8,#d4c4a8);
+  border:2px solid #3a2f24;border-radius:6px;
+  box-shadow:2px 3px 6px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.2);
+  cursor:pointer;user-select:none;color:#1a1410;
+  transition:transform .12s,box-shadow .12s,opacity .35s,border-color .3s;
+  position:relative;
+}
+.option-btn::before{
+  content:'';position:absolute;inset:3px;
+  border:1px solid rgba(58,47,36,.12);border-radius:4px;pointer-events:none;
+}
+.option-btn:hover:not(.disabled):not(.correct){
+  transform:translateY(-2px);box-shadow:2px 5px 10px rgba(0,0,0,.28);
+}
+.option-btn:active:not(.disabled):not(.correct){
+  transform:translateY(1px) scale(.98);box-shadow:1px 1px 3px rgba(0,0,0,.2);
+}
+/* 答錯：淡出 */
+.option-btn.disabled{
+  opacity:.35;pointer-events:none;
+  text-decoration:line-through;text-decoration-color:rgba(0,0,0,.3);
+}
+/* 答對 */
+.option-btn.correct{
+  color:#8b0000!important;border-color:#8b0000!important;
+  background:rgba(139,0,0,.06)!important;
+  pointer-events:none;font-weight:900;
+}
+.option-btn.correct::after{
+  content:'✔ 正解';margin-left:10px;
+  font-size:.85em;color:#8b0000;
+}
+
+/* ===== 意義 & 下一題 ===== */
+#next-btn{
+  display:none;margin-top:18px;padding:10px 28px;
+  font-family:'Noto Serif JP',serif;font-size:clamp(.92rem,2.8vw,1.05rem);font-weight:700;
+  background:linear-gradient(145deg,#5a3e28,#3a2818);
+  color:#d2b48c;border:2px solid #8b7355;border-radius:6px;
+  cursor:pointer;letter-spacing:.06em;
+  transition:transform .15s,opacity .4s;opacity:0;flex-shrink:0;
+}
+#next-btn.show{display:inline-block;opacity:1}
+#next-btn:hover{transform:scale(1.05)}
+#next-btn:active{transform:scale(.97)}
+
+/* ===== 結算 ===== */
+#result-screen{
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  position:absolute;inset:0;background:rgba(30,22,14,.92);
+  z-index:100;color:#d2b48c;text-align:center;padding:20px;
+}
+#result-screen h2{font-size:clamp(1.6rem,5vw,2.2rem);margin-bottom:16px;letter-spacing:.1em}
+#result-screen .score{font-size:clamp(3rem,10vw,5rem);font-weight:900;color:#cd853f;margin:12px 0}
+#result-screen button{
+  margin-top:24px;padding:14px 36px;font-size:1.1rem;
+  font-family:'Noto Serif JP',serif;font-weight:700;
+  background:linear-gradient(145deg,#5a3e28,#3a2818);
+  color:#d2b48c;border:2px solid #8b7355;border-radius:6px;
+  cursor:pointer;transition:transform .15s;
+}
+#result-screen button:hover{transform:scale(1.05)}
+
+/* ===== Loading ===== */
+#loading{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:#c2b29a;z-index:200;font-size:1.2rem;color:#3a2f24;
+}
+.spinner{
+  width:40px;height:40px;border:3px solid #5a3e28;
+  border-top-color:transparent;border-radius:50%;
+  animation:spin 1s linear infinite;margin-bottom:16px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Shake ===== */
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  10%{transform:translateX(-8px) rotate(-1deg)}
+  20%{transform:translateX(8px) rotate(1deg)}
+  30%{transform:translateX(-10px) rotate(-1.5deg)}
+  40%{transform:translateX(10px) rotate(1.5deg)}
+  50%{transform:translateX(-8px) rotate(-1deg)}
+  60%{transform:translateX(8px) rotate(1deg)}
+  70%{transform:translateX(-5px)}80%{transform:translateX(5px)}
+  90%{transform:translateX(-2px)}
+}
+.shake{animation:shake .55s ease-in-out}
+
+@media(min-width:600px){
+  #app{padding:24px 20px}
+  #options{gap:14px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="loading"><div class="spinner"></div><span>題庫載入中…</span></div>
+
+  <div id="header">
+    <span id="progress">第 1 / 5 題</span>
+    <span id="score-display">正解：0</span>
+  </div>
+
+  <div id="question-area">
+    <div id="question-text"></div>
+    <div id="options"></div>
+    <button id="next-btn">次の問題 ▶</button>
+  </div>
+
+  <div id="result-screen">
+    <h2>— 結算 —</h2>
+    <div class="score" id="final-score"></div>
+    <p id="final-msg"></p>
+    <button onclick="startGame()">重新挑戰</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   文法選択 — 選擇題遊戲 (Rusty Lake 風格)
+   ========================================================= */
+
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQQM5AF0ZBXEgMJxyd19k4xo68oAtYFqOIyD6UvVcOmDUR26ZpRvFzSxMKQCvCJ7Xz6cDBDT0kwDaMm/pub?output=csv';
+const PROXIES = [
+  u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+  u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
+  u => u
+];
+const TOTAL_Q = 5;
+
+let allQuestions = [], gameQuestions = [];
+let currentIdx = 0, correctCount = 0;
+let answered = false; // 本題是否已答對
+
+// ===== DOM =====
+const $loading  = document.getElementById('loading');
+const $progress = document.getElementById('progress');
+const $scoreTxt = document.getElementById('score-display');
+const $qText    = document.getElementById('question-text');
+const $options  = document.getElementById('options');
+const $nextBtn  = document.getElementById('next-btn');
+const $result   = document.getElementById('result-screen');
+
+// ===== Web Audio API =====
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function ensureAudio(){ if(!audioCtx) audioCtx = new AudioCtx(); }
+
+function playCorrect(){
+  ensureAudio();
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type='sine'; o.frequency.value=1200;
+  g.gain.setValueAtTime(.3,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.25);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime+.25);
+}
+function playWrong(){
+  ensureAudio();
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type='square'; o.frequency.value=180;
+  g.gain.setValueAtTime(.25,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.3);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime+.3);
+}
+
+// ===== CSV 載入 =====
+async function loadCSV(){
+  let lastErr;
+  for(const makeUrl of PROXIES){
+    try{
+      const url = makeUrl(CSV_URL);
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      let text = await res.text();
+      if(url.includes('allorigins.win/get')) text = JSON.parse(text).contents;
+      allQuestions = parseCSV(text);
+      if(!allQuestions.length) throw new Error('題庫為空');
+      $loading.style.display='none';
+      startGame();
+      return;
+    }catch(e){ console.warn('Proxy fail:',e.message); lastErr=e; }
+  }
+  console.error('載入失敗:',lastErr);
+  $loading.innerHTML='<p style="color:#8b0000">⚠ 題庫載入失敗<br><small>'+lastErr.message+'</small></p>';
+}
+
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2) return [];
+  const headers=splitCSV(lines[0]);
+  const data=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=splitCSV(lines[i]);
+    if(cols.length<headers.length) continue;
+    const obj={};
+    headers.forEach((h,idx)=>obj[h.trim()]=(cols[idx]||'').trim());
+    if(obj.question && obj.A) data.push(obj);
+  }
+  return data;
+}
+
+function splitCSV(line){
+  const r=[]; let c='',q=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(q){if(ch==='"'&&line[i+1]==='"'){c+='"';i++;}else if(ch==='"')q=false;else c+=ch;}
+    else{if(ch==='"')q=true;else if(ch===','){r.push(c);c='';}else c+=ch;}
+  }
+  r.push(c); return r;
+}
+
+// ===== 遊戲控制 =====
+function startGame(){
+  $result.style.display='none';
+  currentIdx=0; correctCount=0;
+  gameQuestions=[...allQuestions].sort(()=>Math.random()-.5).slice(0,Math.min(TOTAL_Q,allQuestions.length));
+  renderQuestion();
+}
+
+function renderQuestion(){
+  answered=false;
+  const q=gameQuestions[currentIdx];
+  $progress.textContent=`第 ${currentIdx+1} / ${gameQuestions.length} 題`;
+  $scoreTxt.textContent=`正解：${correctCount}`;
+  $nextBtn.classList.remove('show');
+  $qText.classList.remove('shake');
+
+  // 題目
+  $qText.textContent = q.question;
+
+  // 選項：打亂順序（A 是正確答案）
+  const correctAns = q.A;
+  const choices = [q.A, q.B, q.C, q.D].filter(Boolean).sort(()=>Math.random()-.5);
+
+  $options.innerHTML='';
+  choices.forEach(text=>{
+    const btn=document.createElement('button');
+    btn.className='option-btn';
+    btn.textContent=text;
+    btn.addEventListener('click',()=>onOptionClick(btn,text,correctAns));
+    $options.appendChild(btn);
+  });
+}
+
+function onOptionClick(btn, selected, correctAns){
+  if(answered || btn.classList.contains('disabled')) return;
+
+  if(selected === correctAns){
+    // ✅ 正確
+    playCorrect();
+    answered=true;
+    correctCount++;
+    $scoreTxt.textContent=`正解：${correctCount}`;
+    btn.classList.add('correct');
+    // 其餘按鈕禁用
+    document.querySelectorAll('.option-btn').forEach(b=>{
+      if(b!==btn) b.style.pointerEvents='none';
+    });
+    $nextBtn.classList.add('show');
+  } else {
+    // ❌ 錯誤
+    playWrong();
+    btn.classList.add('disabled');
+    // Shake 題目
+    $qText.classList.add('shake');
+    setTimeout(()=>$qText.classList.remove('shake'),600);
+  }
+}
+
+// 下一題
+$nextBtn.addEventListener('click',()=>{
+  currentIdx++;
+  if(currentIdx>=gameQuestions.length) showResult();
+  else renderQuestion();
+});
+
+function showResult(){
+  const t=gameQuestions.length;
+  document.getElementById('final-score').textContent=`${correctCount} / ${t}`;
+  const msgs=['もう一度！','まあまあ…','なかなか！','素晴らしい！','完璧！'];
+  document.getElementById('final-msg').textContent=msgs[Math.min(Math.floor(correctCount/t*4),4)];
+  $result.style.display='flex';
+}
+
+// ===== 啟動 =====
+loadCSV();
+</script>
+</body>
+</html>
