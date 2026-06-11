@@ -66,6 +66,17 @@ body{
   font-style:italic;
 }
 #meaning-box.show{opacity:1}
+#next-btn{
+  display:none;margin-top:14px;padding:10px 28px;
+  font-family:'Noto Serif JP',serif;font-size:clamp(.95rem,3vw,1.1rem);font-weight:700;
+  background:linear-gradient(145deg,#5a3e28,#3a2818);
+  color:#d2b48c;border:2px solid #8b7355;border-radius:6px;
+  cursor:pointer;letter-spacing:.08em;
+  transition:transform .15s,opacity .4s;opacity:0;
+}
+#next-btn.show{display:inline-block;opacity:1}
+#next-btn:hover{transform:scale(1.05)}
+#next-btn:active{transform:scale(.97)}
 
 /* ===== 字卡區 ===== */
 #cards-area{
@@ -164,6 +175,7 @@ body{
   <div id="question-area">
     <div id="question-display"></div>
     <div id="meaning-box"></div>
+    <button id="next-btn" onclick="goNext()">次の問題 ▶</button>
   </div>
 
   <!-- 字卡 -->
@@ -327,6 +339,7 @@ function renderQuestion(){
   $scoreTxt.textContent = `正解：${correctCount}`;
   $meaning.textContent = '';
   $meaning.classList.remove('show');
+  document.getElementById('next-btn').classList.remove('show');
 
   // === 題目顯示 ===
   $qDisplay.innerHTML = '';
@@ -439,12 +452,8 @@ function judge(){
     // 顯示意義
     $meaning.textContent = q.meaning || '';
     $meaning.classList.add('show');
-    // 2 秒後下一題
-    setTimeout(() => {
-      currentIdx++;
-      if(currentIdx >= gameQuestions.length) showResult();
-      else renderQuestion();
-    }, 2000);
+    // 顯示「次の問題」按鈕，讓玩家自行點擊
+    document.getElementById('next-btn').classList.add('show');
   } else {
     // ❌ 錯誤
     playWrong();
@@ -461,6 +470,13 @@ function judge(){
       isJudging = false;
     }, 600);
   }
+}
+
+/** 「次の問題」按鈕點擊 */
+function goNext(){
+  currentIdx++;
+  if(currentIdx >= gameQuestions.length) showResult();
+  else renderQuestion();
 }
 
 /** 結算畫面 */
