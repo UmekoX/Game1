@@ -468,6 +468,11 @@ function checkWin(){
   const q=location.search;
   if(q.includes('debug')) document.body.classList.add('debug');
   if(q.includes('unlock')){ FRAGMENTS.forEach(f=>{ try{localStorage.setItem(f.key,'1');}catch(e){} }); }
+  // 從小遊戲「回到走廊」返回時直接進入 Map 場景
+  if(location.hash==='#map'){
+    show('map');
+    try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
+  }
 })();
 </script>
 </body>

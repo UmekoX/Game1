@@ -190,7 +190,7 @@ body{
     <div class="score" id="final-score"></div>
     <p id="final-msg"></p>
     <button onclick="startGame()">重新挑戰</button>
-    <button onclick="window.location.href='../index.html'">回到走廊</button>
+    <button onclick="window.location.href='../index.html#map'">回到走廊</button>
   </div>
 </div>
 
@@ -543,6 +543,7 @@ $nextBtn.addEventListener('click',()=>{
 
 function showResult(){
   try{ localStorage.setItem('sort_cleared','1'); }catch(e){ }
+  showSoulToast('linear-gradient(150deg,#dcb44e,#8a6a24 62%,#3a2c0c 130%)','黄色い魂のかけら');
   const t=gameQuestions.length;
   document.getElementById('final-score').textContent=`${correctCount} / ${t}`;
   const msgs=['もう一度！','まあまあ…','なかなか！','素晴らしい！','完璧！'];
@@ -552,6 +553,49 @@ function showResult(){
 
 // ===== 啟動 =====
 loadCSV();
+</script>
+
+<!-- 靈魂碎片獲得提示 -->
+<div id="soul-toast" class="soul-toast">
+  <div class="soul-toast-inner">
+    <div class="soul-toast-title">道具を手に入れた</div>
+    <div class="soul-shard" id="soul-shard"></div>
+    <div class="soul-toast-name" id="soul-toast-name"></div>
+  </div>
+</div>
+<style>
+.soul-toast{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+  background:rgba(3,2,1,.74);opacity:0;pointer-events:none;transition:opacity .45s ease;
+  font-family:Georgia,"Yu Mincho","游明朝","Hiragino Mincho ProN",serif;}
+.soul-toast.show{opacity:1;pointer-events:auto;}
+.soul-toast-inner{text-align:center;padding:30px 46px;transform:translateY(14px) scale(.96);
+  transition:transform .45s ease;background:linear-gradient(180deg,rgba(30,24,17,.97),rgba(12,9,6,.98));
+  border:2px solid #3a2f22;box-shadow:0 22px 60px rgba(0,0,0,.8),inset 0 0 50px rgba(0,0,0,.7);}
+.soul-toast.show .soul-toast-inner{transform:none;}
+.soul-toast-title{color:#c9ba98;letter-spacing:.22em;font-size:clamp(1rem,3.4vw,1.35rem);margin-bottom:20px;}
+.soul-toast-name{color:#efe8d8;letter-spacing:.12em;font-size:clamp(1.1rem,4vw,1.6rem);
+  margin-top:18px;text-shadow:0 2px 6px #000;}
+.soul-shard{width:88px;height:88px;margin:0 auto;position:relative;
+  clip-path:polygon(50% 0%,82% 14%,100% 48%,86% 84%,52% 100%,16% 88%,0% 50%,12% 16%);
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.6));animation:soul-bob 2.4s ease-in-out infinite;}
+.soul-shard::before{content:"";position:absolute;inset:0;clip-path:inherit;
+  background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.4),transparent 46%),var(--shard);}
+.soul-shard::after{content:"";position:absolute;inset:0;clip-path:inherit;mix-blend-mode:multiply;opacity:.85;
+  background:linear-gradient(64deg,transparent 46%,rgba(0,0,0,.55) 47%,transparent 48.5%),
+  linear-gradient(-28deg,transparent 58%,rgba(0,0,0,.4) 59%,transparent 60%);}
+@keyframes soul-bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+</style>
+<script>
+function showSoulToast(shardGrad, name){
+  var t=document.getElementById('soul-toast');
+  if(!t) return;
+  document.getElementById('soul-shard').style.setProperty('--shard',shardGrad);
+  document.getElementById('soul-toast-name').textContent=name;
+  t.classList.add('show');
+  var hide=function(){ t.classList.remove('show'); t.removeEventListener('click',hide); };
+  t.addEventListener('click',hide);
+  setTimeout(hide,2800);
+}
 </script>
 </body>
 </html>
