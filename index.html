@@ -213,6 +213,30 @@ body.debug .hotspot{
     radial-gradient(circle at 32% 28%, rgba(255,210,200,.45), transparent 46%),
     linear-gradient(150deg,#bb5147,#6a2a23 62%,#2a0f0c 130%); }
 
+/* 碎片上的符文文字（刻印風） */
+.frag-rune{
+  position:absolute; inset:0; z-index:2;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif);
+  font-size:clamp(18px,5vw,36px);
+  font-weight:900;
+  line-height:1;
+  color:rgba(18,12,6,.72);
+  text-shadow:
+    0 1px 0 rgba(255,240,200,.18),
+    0 -1px 1px rgba(0,0,0,.6),
+    1px 1px 2px rgba(0,0,0,.45),
+    -1px -1px 1px rgba(0,0,0,.35),
+    0 0 6px rgba(0,0,0,.3);
+  pointer-events:none;
+  letter-spacing:0;
+}
+/* 各色碎片的符文微調 */
+.frag-red   .frag-rune{ color:rgba(40,10,8,.7);  text-shadow:0 1px 0 rgba(255,180,160,.2),  0 -1px 1px rgba(0,0,0,.55), 1px 1px 2px rgba(0,0,0,.4), 0 0 6px rgba(0,0,0,.25); }
+.frag-white .frag-rune{ color:rgba(50,44,34,.55); text-shadow:0 1px 0 rgba(255,252,240,.35), 0 -1px 1px rgba(0,0,0,.4),  1px 1px 2px rgba(0,0,0,.3), 0 0 6px rgba(0,0,0,.2); }
+.frag-blue  .frag-rune{ color:rgba(14,30,38,.65); text-shadow:0 1px 0 rgba(200,240,255,.22), 0 -1px 1px rgba(0,0,0,.55), 1px 1px 2px rgba(0,0,0,.4), 0 0 6px rgba(0,0,0,.25); }
+.frag-yellow .frag-rune{ color:rgba(48,34,8,.65); text-shadow:0 1px 0 rgba(255,240,180,.25), 0 -1px 1px rgba(0,0,0,.5),  1px 1px 2px rgba(0,0,0,.4), 0 0 6px rgba(0,0,0,.2); }
+
 .fragment.placed{ cursor:default; transform:none; }
 .fragment.dragging-src{ opacity:.28; }
 
@@ -349,10 +373,10 @@ document.getElementById('scene-end').addEventListener('click', ()=>{
 
 /* ===================== 碎片資料 / localStorage ===================== */
 const FRAGMENTS=[
-  {id:'white',  key:'rpg_cleared'},      /* 白い魂のかけら */
-  {id:'blue',   key:'grammar_cleared'},  /* 青い魂のかけら */
-  {id:'yellow', key:'sort_cleared'},     /* 黄色い魂のかけら */
-  {id:'red',    key:'idiom_cleared'},    /* 赤い魂のかけら */
+  {id:'white',  key:'rpg_cleared',     rune:'彙'},  /* 白い魂のかけら → RPG (文字語彙) */
+  {id:'blue',   key:'grammar_cleared', rune:'法'},  /* 青い魂のかけら → 文法選択 */
+  {id:'yellow', key:'sort_cleared',    rune:'並'},  /* 黄色い魂のかけら → 並び替え */
+  {id:'red',    key:'idiom_cleared',   rune:'四'},  /* 赤い魂のかけら → 四字熟語 */
 ];
 function isCleared(key){ try{ return localStorage.getItem(key)==='1'; }catch(e){ return false; } }
 
@@ -370,6 +394,11 @@ function openModal(){
       const el=document.createElement('div');
       el.className='fragment frag-'+f.id;
       el.dataset.id=f.id;
+      // 加入符文標籤
+      const rune=document.createElement('span');
+      rune.className='frag-rune';
+      rune.textContent=f.rune;
+      el.appendChild(rune);
       attachDrag(el);
       tray.appendChild(el);
     }
