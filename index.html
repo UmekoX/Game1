@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>晩自習 ― 魂のかけら</title>
+<style>
+/* ============ 基礎 / Rusty Lake 風 ============ */
+:root{
+  --bg:#0a0908;
+  --ink:#d8cdb8;
+  --frame:#15110d;
+  --frame-line:#3a2f22;
+  --white:#e6e1d2;
+  --blue:#5d8ea3;
+  --yellow:#bd9636;
+  --red:#9a3b34;
+  --serif: Georgia, "Times New Roman", "Yu Mincho", "游明朝", "Hiragino Mincho ProN", serif;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;margin:0;}
+body{
+  background:#000;
+  font-family:var(--serif);
+  color:var(--ink);
+  overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  cursor:default;
+  user-select:none; -webkit-user-select:none;
+}
+
+/* ============ 16:9 舞台（信箱式置中，保證熱區對齊） ============ */
+#stage{
+  position:relative;
+  width:min(100vw, 177.78vh);     /* 16/9 */
+  height:min(56.25vw, 100vh);     /* 9/16 */
+  background:var(--bg);
+  overflow:hidden;
+  box-shadow:0 0 120px rgba(0,0,0,.9) inset;
+}
+
+/* ============ 場景與淡入淡出 ============ */
+.scene{
+  position:absolute; inset:0;
+  opacity:0; pointer-events:none;
+  transition:opacity .9s ease;
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+}
+.scene.active{ opacity:1; pointer-events:auto; }
+
+#scene-cover{ background-image:url('遊戲圖/Cover.png'); cursor:pointer; }
+#scene-start{ background-image:url('遊戲圖/Start.png'); }
+#scene-map  { background-image:url('遊戲圖/Map.png'); }
+#scene-end  { background-image:url('遊戲圖/End.png'); cursor:pointer; }
+
+/* ============ 隱形熱區（百分比定位 RWD） ============ */
+.hotspot{
+  position:absolute;
+  cursor:pointer;
+  background:transparent;
+  border:0;
+}
+/* 偵錯模式：?debug 顯示熱區範圍 */
+body.debug .hotspot{
+  background:rgba(255,80,80,.22);
+  outline:1px dashed rgba(255,120,120,.9);
+}
+
+/* Start：右下白色箭頭 */
+#hot-arrow{ left:80%; top:52%; width:17%; height:21%; }
+
+/* Map：四扇門門牌 */
+#hot-rpg     { left:6%;  top:27%; width:23%; height:40%; } /* 文字語彙 → RPG */
+#hot-grammar { left:27%; top:30%; width:14%; height:33%; } /* 文法 */
+#hot-sort    { left:59%; top:30%; width:14%; height:33%; } /* 並び替え */
+#hot-idiom   { left:72%; top:27%; width:23%; height:40%; } /* 四字熟語 */
+/* Map：地上儀式方框 */
+#hot-ritual  { left:32%; top:67%; width:36%; height:29%; }
+
+/* ============ 氛圍層：暗角 + 噪點 + 微閃爍 ============ */
+.atmos{ position:absolute; inset:0; pointer-events:none; z-index:50; }
+.vignette{
+  background:radial-gradient(ellipse at center,
+    rgba(0,0,0,0) 42%, rgba(0,0,0,.35) 78%, rgba(0,0,0,.72) 100%);
+  mix-blend-mode:multiply;
+}
+.grain{
+  opacity:.06;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  animation:grain 1.2s steps(3) infinite;
+}
+@keyframes grain{
+  0%{transform:translate(0,0)} 33%{transform:translate(-4%,3%)}
+  66%{transform:translate(3%,-2%)} 100%{transform:translate(-2%,-3%)}
+}
+.flicker{ background:rgba(0,0,0,.0); animation:flick 6.5s ease-in-out infinite; }
+@keyframes flick{
+  0%,96%,100%{opacity:0} 97%{opacity:.18} 98%{opacity:0} 99%{opacity:.12}
+}
+
+/* ============ 靈魂碎片拼圖面板 (Modal) ============ */
+#modal{
+  position:absolute; inset:0; z-index:100;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(3,2,1,.82);
+  backdrop-filter:blur(2px);
+  opacity:0; pointer-events:none;
+  transition:opacity .5s ease;
+}
+#modal.open{ opacity:1; pointer-events:auto; }
+
+.panel{
+  position:relative;
+  width:min(86%, 760px);
+  padding:clamp(18px,3.4vw,40px);
+  background:
+    linear-gradient(180deg, rgba(30,24,17,.96), rgba(14,11,8,.98));
+  border:2px solid var(--frame-line);
+  box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 26px 70px rgba(0,0,0,.8),
+             inset 0 0 60px rgba(0,0,0,.7);
+  transform:translateY(14px) scale(.98);
+  transition:transform .5s ease;
+}
+#modal.open .panel{ transform:none; }
+.panel::after{ /* 內框細線 */
+  content:""; position:absolute; inset:8px; border:1px solid rgba(120,98,64,.25);
+  pointer-events:none;
+}
+
+.panel-close{
+  position:absolute; top:6px; right:12px;
+  font:700 26px/1 var(--serif); color:#7a6a4f; background:none; border:0;
+  cursor:pointer; z-index:3;
+}
+.panel-close:hover{ color:var(--ink); }
+
+.progress{
+  position:absolute; top:clamp(14px,2.6vw,26px); right:clamp(18px,3vw,34px);
+  font-size:clamp(.9rem,2vw,1.15rem); letter-spacing:.18em; color:#b8a987;
+  text-shadow:0 1px 2px #000;
+}
+.progress b{ color:var(--white); font-size:1.25em; }
+
+/* 上方四個空格 */
+.dropzones{
+  display:flex; gap:clamp(8px,2vw,20px); justify-content:center;
+  margin:clamp(34px,5vw,52px) 0 clamp(22px,4vw,38px);
+  flex-wrap:nowrap;
+}
+.dropzone{
+  width:clamp(58px,15vw,104px); aspect-ratio:1/1;
+  border:2px dashed rgba(150,128,90,.45);
+  background:radial-gradient(circle at 50% 40%, rgba(0,0,0,.15), rgba(0,0,0,.5));
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.dropzone.hover{ border-color:var(--ink); background:rgba(120,100,60,.18); }
+.dropzone.filled{ border-style:solid; border-color:rgba(90,72,44,.6); }
+
+.tray-divider{
+  height:1px; margin:clamp(6px,2vw,16px) auto clamp(16px,3vw,26px);
+  width:78%;
+  background:linear-gradient(90deg, transparent, rgba(120,98,64,.5), transparent);
+}
+
+/* 下方：收集到的碎片 */
+.tray{
+  display:flex; gap:clamp(10px,2.5vw,24px); justify-content:center;
+  flex-wrap:wrap; min-height:clamp(58px,15vw,104px);
+  align-items:center;
+}
+
+/* ============ 碎片：破碎復古 CSS ============ */
+.fragment{
+  width:clamp(54px,14vw,96px); aspect-ratio:1/1;
+  position:relative;
+  cursor:grab; touch-action:none;
+  clip-path:polygon(50% 0%, 82% 14%, 100% 48%, 86% 84%, 52% 100%, 16% 88%, 0% 50%, 12% 16%);
+  filter:drop-shadow(0 4px 6px rgba(0,0,0,.6));
+  transition:transform .15s ease;
+}
+.fragment:active{ cursor:grabbing; }
+.fragment:not(.placed):hover{ transform:scale(1.06) rotate(-2deg); }
+.fragment::before{ /* 主體質感 */
+  content:""; position:absolute; inset:0;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255,255,255,.35), transparent 46%),
+    linear-gradient(150deg, var(--c1), var(--c2) 60%, #000 130%);
+  clip-path:inherit;
+}
+.fragment::after{ /* 裂痕 + 顆粒 */
+  content:""; position:absolute; inset:0; clip-path:inherit;
+  background:
+    linear-gradient(64deg, transparent 46%, rgba(0,0,0,.55) 47%, transparent 48.5%),
+    linear-gradient(-28deg, transparent 58%, rgba(0,0,0,.4) 59%, transparent 60%),
+    repeating-linear-gradient(0deg, rgba(0,0,0,.06) 0 2px, transparent 2px 4px);
+  mix-blend-mode:multiply; opacity:.85;
+}
+.frag-white { --c1:#f1ecdd; --c2:#9c958180; }
+.frag-white::before{ background:
+    radial-gradient(circle at 32% 28%, rgba(255,255,255,.55), transparent 46%),
+    linear-gradient(150deg,#f1ecdd,#a39c87 62%,#3a352b 130%); }
+.frag-blue  { --c1:#7fb3c8; --c2:#2f5868; }
+.frag-blue::before{ background:
+    radial-gradient(circle at 32% 28%, rgba(220,245,255,.5), transparent 46%),
+    linear-gradient(150deg,#7fb3c8,#33606f 62%,#10242c 130%); }
+.frag-yellow{ --c1:#dcb44e; --c2:#7a5c1c; }
+.frag-yellow::before{ background:
+    radial-gradient(circle at 32% 28%, rgba(255,244,200,.5), transparent 46%),
+    linear-gradient(150deg,#dcb44e,#8a6a24 62%,#3a2c0c 130%); }
+.frag-red   { --c1:#bb5147; --c2:#5e221d; }
+.frag-red::before{ background:
+    radial-gradient(circle at 32% 28%, rgba(255,210,200,.45), transparent 46%),
+    linear-gradient(150deg,#bb5147,#6a2a23 62%,#2a0f0c 130%); }
+
+.fragment.placed{ cursor:default; transform:none; }
+.fragment.dragging-src{ opacity:.28; }
+
+/* 拖曳替身 */
+.fragment.ghost{
+  position:fixed; left:0; top:0; z-index:9999;
+  pointer-events:none; margin:0;
+  transform:scale(1.12) rotate(5deg);
+  filter:drop-shadow(0 10px 14px rgba(0,0,0,.7));
+}
+
+/* 全螢幕勝利淡白閃光 */
+#flash{
+  position:absolute; inset:0; z-index:200; background:#f4efe2;
+  opacity:0; pointer-events:none; transition:opacity .6s ease;
+}
+#flash.show{ opacity:.9; }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- Cover -->
+  <div id="scene-cover" class="scene active"></div>
+
+  <!-- Start -->
+  <div id="scene-start" class="scene">
+    <div class="hotspot" id="hot-arrow"></div>
+  </div>
+
+  <!-- Map -->
+  <div id="scene-map" class="scene">
+    <div class="hotspot" id="hot-rpg"></div>
+    <div class="hotspot" id="hot-grammar"></div>
+    <div class="hotspot" id="hot-sort"></div>
+    <div class="hotspot" id="hot-idiom"></div>
+    <div class="hotspot" id="hot-ritual"></div>
+  </div>
+
+  <!-- End -->
+  <div id="scene-end" class="scene"></div>
+
+  <!-- 拼圖面板 -->
+  <div id="modal">
+    <div class="panel">
+      <button class="panel-close" id="panel-close" aria-label="close">×</button>
+      <div class="progress"><b id="prog-num">0</b> / 4</div>
+      <div class="dropzones" id="dropzones">
+        <div class="dropzone"></div>
+        <div class="dropzone"></div>
+        <div class="dropzone"></div>
+        <div class="dropzone"></div>
+      </div>
+      <div class="tray-divider"></div>
+      <div class="tray" id="tray"></div>
+    </div>
+  </div>
+
+  <!-- 氛圍層 -->
+  <div class="atmos vignette"></div>
+  <div class="atmos grain"></div>
+  <div class="atmos flicker"></div>
+  <div id="flash"></div>
+
+</div>
+
+<script>
+/* ===================== Web Audio：叮 / 嘟 ===================== */
+let actx=null;
+function audio(){
+  if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(actx && actx.state==='suspended') actx.resume();
+  return actx;
+}
+function tone(freq, dur, type, peak, slideTo){
+  const ac=audio(); if(!ac) return;
+  const t=ac.currentTime;
+  const o=ac.createOscillator(), g=ac.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq, t);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t+dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(g).connect(ac.destination);
+  o.start(t); o.stop(t+dur+0.02);
+}
+/* 高音「叮」：清脆鈴聲（基音 + 泛音） */
+function sfxDing(){ tone(1180,0.5,'sine',0.32); tone(1760,0.45,'sine',0.10); }
+/* 低沉「嘟」：錯誤 / 無效 */
+function sfxBuzz(){ tone(150,0.34,'sawtooth',0.22,90); }
+/* 勝利：上行琶音 */
+function sfxWin(){ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,0.5,'triangle',0.26),i*140)); }
+
+/* ===================== 場景切換 ===================== */
+const scenes=['cover','start','map','end'];
+function show(name){
+  scenes.forEach(s=>document.getElementById('scene-'+s).classList.remove('active'));
+  document.getElementById('scene-'+name).classList.add('active');
+}
+
+/* ===================== Cover：點任意處 → Start ===================== */
+document.getElementById('scene-cover').addEventListener('click', ()=>{
+  sfxDing(); show('start');
+});
+
+/* ===================== Start：白箭頭 → Map；其他 → 嘟 ===================== */
+document.getElementById('scene-start').addEventListener('click', ()=> sfxBuzz());
+document.getElementById('hot-arrow').addEventListener('click', e=>{
+  e.stopPropagation(); sfxDing(); show('map');
+});
+
+/* ===================== Map：四門連結 + 儀式框；空白 → 嘟 ===================== */
+document.getElementById('scene-map').addEventListener('click', ()=> sfxBuzz());
+function gotoGame(e, url){
+  e.stopPropagation(); sfxDing();
+  const stage=document.getElementById('stage');
+  stage.style.transition='opacity .6s ease'; stage.style.opacity='0';
+  setTimeout(()=>{ window.location.href=url; }, 600);
+}
+document.getElementById('hot-rpg')    .addEventListener('click', e=>gotoGame(e,'./RPG/index.html'));
+document.getElementById('hot-grammar').addEventListener('click', e=>gotoGame(e,'./文法選択/index.html'));
+document.getElementById('hot-sort')   .addEventListener('click', e=>gotoGame(e,'./並び替え/index.html'));
+document.getElementById('hot-idiom')  .addEventListener('click', e=>gotoGame(e,'./四字熟語/index.html'));
+document.getElementById('hot-ritual') .addEventListener('click', e=>{
+  e.stopPropagation(); sfxDing(); openModal();
+});
+
+/* ===================== End：點任意處 → 清除狀態 → Cover ===================== */
+document.getElementById('scene-end').addEventListener('click', ()=>{
+  sfxDing();
+  FRAGMENTS.forEach(f=>{ try{ localStorage.removeItem(f.key); }catch(e){} });
+  show('cover');
+});
+
+/* ===================== 碎片資料 / localStorage ===================== */
+const FRAGMENTS=[
+  {id:'white',  key:'rpg_cleared'},      /* 白い魂のかけら */
+  {id:'blue',   key:'grammar_cleared'},  /* 青い魂のかけら */
+  {id:'yellow', key:'sort_cleared'},     /* 黄色い魂のかけら */
+  {id:'red',    key:'idiom_cleared'},    /* 赤い魂のかけら */
+];
+function isCleared(key){ try{ return localStorage.getItem(key)==='1'; }catch(e){ return false; } }
+
+/* ===================== Modal 開關 ===================== */
+const modal=document.getElementById('modal');
+const tray=document.getElementById('tray');
+const progNum=document.getElementById('prog-num');
+
+function openModal(){
+  // 重建：清空空格、依 localStorage 放入已收集碎片
+  document.querySelectorAll('.dropzone').forEach(z=>{ z.classList.remove('filled','hover'); z.innerHTML=''; });
+  tray.innerHTML='';
+  FRAGMENTS.forEach(f=>{
+    if(isCleared(f.key)){
+      const el=document.createElement('div');
+      el.className='fragment frag-'+f.id;
+      el.dataset.id=f.id;
+      attachDrag(el);
+      tray.appendChild(el);
+    }
+  });
+  updateProgress();
+  modal.classList.add('open');
+}
+function closeModal(){ modal.classList.remove('open'); }
+document.getElementById('panel-close').addEventListener('click', ()=>{ sfxDing(); closeModal(); });
+modal.addEventListener('click', e=>{ if(e.target===modal){ sfxBuzz(); closeModal(); } });
+
+function updateProgress(){
+  const n=document.querySelectorAll('.dropzone.filled').length;
+  progNum.textContent=n;
+}
+
+/* ===================== 拖曳：滑鼠 + 觸控 ===================== */
+let drag=null, ghost=null;
+
+function attachDrag(el){
+  el.addEventListener('mousedown', e=>{ beginDrag(el, e.clientX, e.clientY, e); });
+  el.addEventListener('touchstart', e=>{
+    const t=e.touches[0]; beginDrag(el, t.clientX, t.clientY, e);
+  }, {passive:false});
+}
+function beginDrag(el, x, y, ev){
+  if(el.classList.contains('placed')) return;
+  if(ev.cancelable) ev.preventDefault();
+  const r=el.getBoundingClientRect();
+  drag={el, dx:x-r.left, dy:y-r.top, w:r.width};
+  ghost=el.cloneNode(true);
+  ghost.classList.add('ghost');
+  ghost.style.width=r.width+'px';
+  document.body.appendChild(ghost);
+  el.classList.add('dragging-src');
+  moveGhost(x,y);
+}
+function moveGhost(x,y){
+  if(!ghost) return;
+  ghost.style.left=(x-drag.dx)+'px';
+  ghost.style.top=(y-drag.dy)+'px';
+  ghost.style.display='none';
+  const under=document.elementFromPoint(x,y);
+  ghost.style.display='';
+  document.querySelectorAll('.dropzone').forEach(z=>z.classList.remove('hover'));
+  const zone=under && under.closest ? under.closest('.dropzone') : null;
+  if(zone && !zone.classList.contains('filled')) zone.classList.add('hover');
+}
+function endDrag(x,y){
+  if(!drag) return;
+  ghost.style.display='none';
+  const under=document.elementFromPoint(x,y);
+  ghost.style.display='';
+  const zone=under && under.closest ? under.closest('.dropzone') : null;
+  let ok=false;
+  if(zone && !zone.classList.contains('filled')){
+    zone.appendChild(drag.el);
+    zone.classList.add('filled');
+    drag.el.classList.remove('dragging-src');
+    drag.el.classList.add('placed');
+    ok=true;
+  }else{
+    drag.el.classList.remove('dragging-src');
+  }
+  cleanupGhost();
+  document.querySelectorAll('.dropzone').forEach(z=>z.classList.remove('hover'));
+  if(ok){ sfxDing(); updateProgress(); checkWin(); }
+  else { sfxBuzz(); }
+}
+function cleanupGhost(){ if(ghost){ ghost.remove(); ghost=null; } drag=null; }
+
+document.addEventListener('mousemove', e=>{ if(drag) moveGhost(e.clientX,e.clientY); });
+document.addEventListener('mouseup',   e=>{ if(drag) endDrag(e.clientX,e.clientY); });
+document.addEventListener('touchmove', e=>{
+  if(drag){ if(e.cancelable) e.preventDefault(); const t=e.touches[0]; moveGhost(t.clientX,t.clientY); }
+}, {passive:false});
+document.addEventListener('touchend',  e=>{
+  if(drag){ const t=e.changedTouches[0]; endDrag(t.clientX,t.clientY); }
+});
+
+/* ===================== 勝利判定 ===================== */
+function checkWin(){
+  if(document.querySelectorAll('.dropzone.filled').length===4){
+    sfxWin();
+    setTimeout(()=>{
+      closeModal();
+      const flash=document.getElementById('flash');
+      flash.classList.add('show');
+      setTimeout(()=>{ show('end'); flash.classList.remove('show'); }, 700);
+    }, 700);
+  }
+}
+
+/* ===================== 偵錯 / 預覽工具 ===================== */
+(function(){
+  const q=location.search;
+  if(q.includes('debug')) document.body.classList.add('debug');
+  if(q.includes('unlock')){ FRAGMENTS.forEach(f=>{ try{localStorage.setItem(f.key,'1');}catch(e){} }); }
+})();
+</script>
+</body>
+</html>

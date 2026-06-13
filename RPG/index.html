@@ -231,6 +231,7 @@ body{
     <p id="result-detail"></p>
     <p id="result-hp"></p>
     <button onclick="initGame()">重新挑戰</button>
+    <button onclick="window.location.href='../index.html'">回到走廊</button>
   </div>
 </div>
 
@@ -463,6 +464,9 @@ function flashEl(el){
 
 // ===== 結算 =====
 function showResult(won){
+  if(won){
+    try{ localStorage.setItem('rpg_cleared','1'); }catch(e){ }
+  }
   document.getElementById('result-title').textContent=won?'🎉 討伐成功！':'💀 力尽きた…';
   document.getElementById('result-big').textContent=won?'全ステージクリア！':'ゲームオーバー';
   document.getElementById('result-detail').textContent=`正解数：${totalCorrect} 問`;

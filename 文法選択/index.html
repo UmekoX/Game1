@@ -172,6 +172,7 @@ body{
     <div class="score" id="final-score"></div>
     <p id="final-msg"></p>
     <button onclick="startGame()">重新挑戰</button>
+    <button onclick="window.location.href='../index.html'">回到走廊</button>
   </div>
 </div>
 
@@ -337,6 +338,7 @@ $nextBtn.addEventListener('click',()=>{
 });
 
 function showResult(){
+  try{ localStorage.setItem('grammar_cleared','1'); }catch(e){ }
   const t=gameQuestions.length;
   document.getElementById('final-score').textContent=`${correctCount} / ${t}`;
   const msgs=['もう一度！','まあまあ…','なかなか！','素晴らしい！','完璧！'];
